@@ -19,6 +19,23 @@ use util::char_at;
 use self::annotated_document::AnnotatedDocument;
 
 
+pub trait TokenSink {
+    /// Append a token
+    ///
+    /// Append a token starting at `begin` with text `text`, that 
+    /// matched rule #`rule_id`.
+    fn append(&mut self, begin: usize, text: &str, rule_id: usize);
+
+    /// Skip an unhandled character
+    ///
+    /// The character at `begin` is not the first character of any pattern
+    /// that this tokenizer knows about. For symmetry with `append()`, 
+    /// the text is passed in as a &str, but in general it should only be
+    /// one character long.
+    fn skip(&mut self, begin: usize, text: &str);
+}
+
+
 struct TaskList {
     t: SparseSet,
 }
@@ -63,22 +80,17 @@ impl MatchRecord {
 
 
 
-pub type TokenizerAction = fn(&str, &mut AnnotatedDocument) -> ();
-
-
 pub struct ThompsonInterpreter {
     pub matches: Vec<MatchRecord>, // string positions where matches ended
     prog: Program,
-    actions: Vec<TokenizerAction>,
 }
 
 impl ThompsonInterpreter {
     
-    pub fn new(p: Program, acts: Vec<TokenizerAction>) -> ThompsonInterpreter {
+    pub fn new(p: Program) -> ThompsonInterpreter {
         ThompsonInterpreter {
             matches: vec![],
             prog: p,
-            actions: acts,
         }
     }
 
@@ -223,25 +235,25 @@ impl ThompsonInterpreter {
         }
     }
 
-    /**
-     * Loops over the characters in the input, but will exit early if
-     * we ever reach a point where nothing in the input matches.
-     * Then clist will be empty.
-     * Currently, we have no way of knowing what caused termination
-     * (out of string? no surviving threads?). It is just a matter of
-     * whether there were any matches at that point.
-     * 
-     * This is not quite correct. There should be an outer loop which 
-     * consumes the string, and an inner loop which finds matches.
-     * When we are done looking for matches (clist is empty), we bump
-     * our string position to either the end of the best match (if there
-     * were any) or one position forward (if there were no matches).
-     *
-     * That latter is assuming that we do not require a match of some kind
-     * on every character. Otherwise we have to fail harder in cases where
-     * the match list comes back empty.
-     */
-    pub fn apply(&mut self, text: &str) {
+    /// Apply our program repeatedly over an input string.
+    ///
+    /// Loops over the characters in the input, but will exit early if
+    /// we ever reach a point where nothing in the input matches.
+    /// Then clist will be empty.
+    /// Currently, we have no way of knowing what caused termination
+    /// (out of string? no surviving threads?). It is just a matter of
+    /// whether there were any matches at that point.
+    /// 
+    /// This is not quite correct. There should be an outer loop which 
+    /// consumes the string, and an inner loop which finds matches.
+    /// When we are done looking for matches (clist is empty), we bump
+    /// our string position to either the end of the best match (if there
+    /// were any) or one position forward (if there were no matches).
+    ///
+    /// That latter is assuming that we do not require a match of some kind
+    /// on every character. Otherwise we have to fail harder in cases where
+    /// the match list comes back empty.
+    pub fn apply(&mut self, text: &str, sink: &mut TokenSink) {
 
         let mut pos: usize = 0;
         while pos < text.len() {
@@ -250,13 +262,15 @@ impl ThompsonInterpreter {
             match self.best_match() {
                 None => {
                     // increment pos by 1 and try again
-                    println!("No rule matched at pos {}", pos);
+                    //println!("No rule matched at pos {}", pos);
+                    sink.skip(pos, &text[pos..(pos + 1)]);
                     pos += 1;
                 }
                 Some(mtch) => {
                     // emit a token
                     //println!("TOKEN: {} -> {} [{}]", pos, pos + mtch.len, mtch.rule);
-                    self.actions[mtch.rule](&text[pos..(pos + mtch.len)]);
+                    sink.append(pos, &text[pos..(pos + mtch.len)], mtch.rule);
+                    //self.actions[mtch.rule](&text[pos..(pos + mtch.len)]);
                     // increment pos by mtch length and continue
                     pos += mtch.len;
                 }

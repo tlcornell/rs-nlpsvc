@@ -19,6 +19,9 @@ use std::path::Path;
 mod regex_tokenizer;
 use regex_tokenizer::TokenizerBuilder;
 
+use nlpsvc_regex::reinterp::TokenSink;
+
+
 struct AppConfig {
     text_file: Option<String>,
 }
@@ -101,16 +104,45 @@ fn punct_action(tok: &str) {
     println!("PUNCT [{}]", tok);
 }
 
+struct EnglishTokenSink;
+
+impl TokenSink for EnglishTokenSink {
+    /// Append a token
+    ///
+    /// Append a token starting at `begin` with text `text`, that 
+    /// matched rule #`rule_id`.
+    fn append(&mut self, begin: usize, text: &str, rule_id: usize) {
+        match rule_id {
+            0 => { word_action(text); }
+            1 => { num_action(text); }
+            2 => { punct_action(text); }
+            _ => { panic!("Unrecognized rule ID"); }
+        }
+    }
+
+    /// Skip an unhandled character
+    ///
+    /// The character at `begin` is not the first character of any pattern
+    /// that this tokenizer knows about. For symmetry with `append()`, 
+    /// the text is passed in as a &str, but in general it should only be
+    /// one character long.
+    fn skip(&mut self, begin: usize, text: &str) {
+        println!("No rule matched at pos {}", begin);
+    }
+
+}
+
 fn main() {
     let cfg = configure();
     let text_src = TextSource::new(&cfg);
 
     let mut english_tokenizer = TokenizerBuilder::new()
-        .add_rule(r"(?i)[a-z]+", word_action)           // [0] words
-        .add_rule(r"[0-9,.]*[0-9]+", num_action)        // [1] numbers
-        .add_rule(r"[.,?!]", punct_action)              // [2] punctuation
+        .add_rule(r"(?i)[a-z]+")           // [0] words
+        .add_rule(r"[0-9,.]*[0-9]+")       // [1] numbers
+        .add_rule(r"[.,?!]")               // [2] punctuation
         .build();
 
     println!("\n{}", text_src.get_text());
-    english_tokenizer.run(text_src.get_text());
+    let mut sink = EnglishTokenSink {};
+    english_tokenizer.run(text_src.get_text(), &mut sink);
 }
