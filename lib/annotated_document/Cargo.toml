@@ -1,0 +1,7 @@
+[package]
+name = "annotated_document"
+version = "0.1.0"
+authors = ["Tom Cornell <tom.cornell@gmail.com>"]
+
+[dependencies]
+
