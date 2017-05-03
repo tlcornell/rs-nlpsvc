@@ -12,6 +12,7 @@
 extern crate annotated_document;
 
 use std::mem::swap;
+use std::cmp::{PartialOrd, Ordering};
 use reprog::*;
 use sparse::SparseSet; // cribbed from regex crate, and from its ancestors
 use reprog::Instruction::*;
@@ -66,7 +67,7 @@ impl TaskList {
 }
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MatchRecord {
     pub len: usize,
     pub rule: usize,
@@ -78,15 +79,35 @@ impl MatchRecord {
     }
 }
 
+impl PartialOrd for MatchRecord {
+
+    /// A MatchRecord is bigger if it is longer, or same length but its rule is lower numbered
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.len > other.len {
+            return Some(Ordering::Greater);
+            //best = m.clone();
+        } else if self.len == other.len {
+            if self.rule < other.rule {
+                return Some(Ordering::Greater);
+            } else if self.rule == other.rule {
+                return Some(Ordering::Equal);
+            }
+        }
+        // self.len < other.len || equal && self.rule > other.rule
+        return Some(Ordering::Less);
+    }
+}
+
 
 
 pub struct ThompsonInterpreter {
-    pub matches: Vec<MatchRecord>, // string positions where matches ended
+    pub matches: Vec<MatchRecord>, 
     prog: Program,
 }
 
 impl ThompsonInterpreter {
     
+    /// Make a new ThompsonInterpreter, with program `p` and no matches.
     pub fn new(p: Program) -> ThompsonInterpreter {
         ThompsonInterpreter {
             matches: vec![],
@@ -94,34 +115,39 @@ impl ThompsonInterpreter {
         }
     }
 
+    /// Return the best match at our current position 
+    ///
+    /// Where "best" means "longest". Ties are broken according to the 
+    /// order of rules: earlier (lower-numbered) rules win.
+    /// So clients should put the special cases first, 
+    /// and default rules later on.
     fn best_match(&self) -> Option<MatchRecord> {
         if self.matches.is_empty() {
             return None;
         }
         let mut best = MatchRecord {len: 0, rule: 0};
         for m in &self.matches {
-            if m.len > best.len {
+            if m > &best {
                 best = m.clone();
-            } else if m.len == best.len {
-                if m.rule < best.rule {
-                    best = m.clone();
-                }
             }
-            // else m.len < best.len, and we continue
         }
+        // NOTE: If no match compares better than {0,0}, we will end up 
+        // returning that. This could happen if (1) a rule matched the 
+        // empty string (BAD IDEA!), and (2) it was not rule #0.
         Some(best)
     }
 
-    /**
-     * Loop through clist. Epsilon transitions (Split) add new entries to clist,
-     * so this implements epsilon-closure. All other instructions add new 
-     * entries to nlist.
-     * So this will apply all character tests to the current character, and
-     * return when it is done.
-     * There is no direct notion of failure here. If nothing is added to nlist,
-     * then the whole procedure will terminate. There is a global notion of
-     * failure which can be checked then, namely were there any matches. 
-     */
+    /// Execute tasks in clist
+    ///
+    /// Loop through clist. Epsilon transitions (Split) add new entries to clist,
+    /// so this implements epsilon-closure. All other instructions add new 
+    /// entries to nlist.
+    /// So this will apply all character tests to the current character, and
+    /// return when it is done.
+    /// There is no direct notion of failure here. If nothing is added to nlist,
+    /// then the whole procedure will terminate very soon. 
+    /// There is a global notion of failure which can be checked then, 
+    /// namely were there any matches. 
     fn advance(
         &mut self, 
         str_pos: usize, 
@@ -188,16 +214,15 @@ impl ThompsonInterpreter {
 
 
 
-    /**
-     * Find a token starting at &text[begin..], if possible.
-     * Results are stored in self.matches, and so "failure" is indicated
-     * by an empty match list.
-     */
+    /// Find a token starting at &text[begin..], if possible.
+    ///
+    /// Results are stored in self.matches, and so "failure" is indicated
+    /// by an empty match list.
     fn all_matches_at(&mut self, text: &str) {
 
         let plen = self.prog.len();
-        let mut clist = TaskList::new(plen);
-        let mut nlist = TaskList::new(plen);
+        let mut clist = TaskList::new(plen);    // 'current' tasks
+        let mut nlist = TaskList::new(plen);    // 'next' tasks 
 
         self.matches.clear();
 
@@ -215,6 +240,7 @@ impl ThompsonInterpreter {
             match char_at(&text[pos..]) {
                 None => { 
                     if pos == text.len() {
+                        // At end of string. None is expected.
                         ch = 0 as char;
                     } else {
                         panic!("ERROR: Could not decode character at {}", pos);
