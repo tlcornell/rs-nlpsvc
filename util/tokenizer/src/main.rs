@@ -5,7 +5,10 @@
 // main.rs 
 
 extern crate getopts;
-extern crate nlpsvc_regex;
+extern crate annotated_document;
+extern crate regex_tokenizer;
+
+//mod dummy_tokenizer;
 
 use getopts::Options;
 use std::env;
@@ -16,11 +19,11 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::path::Path;
 
-mod regex_tokenizer;
-use regex_tokenizer::TokenizerBuilder;
 
-use nlpsvc_regex::reinterp::TokenSink;
-
+//use dummy_tokenizer::DummyTokenizerRules;
+use annotated_document::AnnotatedDocument;
+use regex_tokenizer::english_rules::EnglishTokenizer;
+use regex_tokenizer::regex_tokenizer::RegexTokenizer;
 
 struct AppConfig {
     text_file: Option<String>,
@@ -92,57 +95,14 @@ impl TextSource {
 
 
 
-fn word_action (tok: &str) {
-    println!("WORD [{}]", tok);
-}
 
-fn num_action(tok: &str) {
-    println!("NUMBER [{}]", tok);
-}
-
-fn punct_action(tok: &str) {
-    println!("PUNCT [{}]", tok);
-}
-
-struct EnglishTokenSink;
-
-impl TokenSink for EnglishTokenSink {
-    /// Append a token
-    ///
-    /// Append a token starting at `begin` with text `text`, that 
-    /// matched rule #`rule_id`.
-    fn append(&mut self, begin: usize, text: &str, rule_id: usize) {
-        match rule_id {
-            0 => { word_action(text); }
-            1 => { num_action(text); }
-            2 => { punct_action(text); }
-            _ => { panic!("Unrecognized rule ID"); }
-        }
-    }
-
-    /// Skip an unhandled character
-    ///
-    /// The character at `begin` is not the first character of any pattern
-    /// that this tokenizer knows about. For symmetry with `append()`, 
-    /// the text is passed in as a &str, but in general it should only be
-    /// one character long.
-    fn skip(&mut self, begin: usize, text: &str) {
-        println!("No rule matched at pos {}", begin);
-    }
-
-}
 
 fn main() {
     let cfg = configure();
     let text_src = TextSource::new(&cfg);
-
-    let mut english_tokenizer = TokenizerBuilder::new()
-        .add_rule(r"(?i)[a-z]+")           // [0] words
-        .add_rule(r"[0-9,.]*[0-9]+")       // [1] numbers
-        .add_rule(r"[.,?!]")               // [2] punctuation
-        .build();
-
     println!("\n{}", text_src.get_text());
-    let mut sink = EnglishTokenSink {};
-    english_tokenizer.run(text_src.get_text(), &mut sink);
+
+    let mut tokenizer = EnglishTokenizer::new();   // compile regex patterns
+    let mut doc = AnnotatedDocument::new(text_src.get_text());
+    tokenizer.apply_to(&mut doc);
 }

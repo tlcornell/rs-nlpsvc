@@ -9,32 +9,58 @@
  * Appending all programs means we still just have one clist and one nlist.
  */
 
-extern crate annotated_document;
-
 use std::mem::swap;
 use std::cmp::{PartialOrd, Ordering};
 use reprog::*;
 use sparse::SparseSet; // cribbed from regex crate, and from its ancestors
 use reprog::Instruction::*;
 use util::char_at;
-use self::annotated_document::AnnotatedDocument;
 
 
-pub trait TokenSink {
-    /// Append a token
-    ///
-    /// Append a token starting at `begin` with text `text`, that 
-    /// matched rule #`rule_id`.
-    fn append(&mut self, begin: usize, text: &str, rule_id: usize);
 
-    /// Skip an unhandled character
-    ///
-    /// The character at `begin` is not the first character of any pattern
-    /// that this tokenizer knows about. For symmetry with `append()`, 
-    /// the text is passed in as a &str, but in general it should only be
-    /// one character long.
-    fn skip(&mut self, begin: usize, text: &str);
+
+/// Record of candidate matches.
+///
+/// The engine does not keep track of where the match starts, since all 
+/// candidates start at the same place. 
+///
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MatchRecord {
+    pub len: usize,
+    pub rule: usize,
 }
+
+impl MatchRecord {
+    pub fn new(len: usize, rule: usize) -> MatchRecord {
+        MatchRecord { len, rule }
+    }
+}
+
+impl PartialOrd for MatchRecord {
+
+    /// A MatchRecord is bigger if it is longer, or same length but its rule is lower numbered
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.len > other.len {
+            return Some(Ordering::Greater);
+            //best = m.clone();
+        } else if self.len == other.len {
+            if self.rule < other.rule {
+                return Some(Ordering::Greater);
+            } else if self.rule == other.rule {
+                return Some(Ordering::Equal);
+            }
+        }
+        // self.len < other.len || equal && self.rule > other.rule
+        return Some(Ordering::Less);
+    }
+}
+
+
+
+pub trait TokenRecognizer {
+    fn next_token(&mut self, text: &str, pos: usize) -> Option<MatchRecord>;
+}
+
 
 
 struct TaskList {
@@ -63,38 +89,6 @@ impl TaskList {
         if !self.t.contains(pc) {
             self.t.insert(pc);
         }
-    }
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MatchRecord {
-    pub len: usize,
-    pub rule: usize,
-}
-
-impl MatchRecord {
-    pub fn new(p: usize, r: usize) -> MatchRecord {
-        MatchRecord { len: p, rule: r }
-    }
-}
-
-impl PartialOrd for MatchRecord {
-
-    /// A MatchRecord is bigger if it is longer, or same length but its rule is lower numbered
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if self.len > other.len {
-            return Some(Ordering::Greater);
-            //best = m.clone();
-        } else if self.len == other.len {
-            if self.rule < other.rule {
-                return Some(Ordering::Greater);
-            } else if self.rule == other.rule {
-                return Some(Ordering::Equal);
-            }
-        }
-        // self.len < other.len || equal && self.rule > other.rule
-        return Some(Ordering::Less);
     }
 }
 
@@ -145,9 +139,9 @@ impl ThompsonInterpreter {
     /// So this will apply all character tests to the current character, and
     /// return when it is done.
     /// There is no direct notion of failure here. If nothing is added to nlist,
-    /// then the whole procedure will terminate very soon. 
-    /// There is a global notion of failure which can be checked then, 
-    /// namely were there any matches. 
+    /// then the whole procedure will terminate very soon. There is a global 
+    /// notion of failure which can be checked then, namely were there any 
+    /// matches. 
     fn advance(
         &mut self, 
         str_pos: usize, 
@@ -218,6 +212,9 @@ impl ThompsonInterpreter {
     ///
     /// Results are stored in self.matches, and so "failure" is indicated
     /// by an empty match list.
+    ///
+    /// Note that we only match patterns that are prefixes of text. 
+    /// In effect, all patterns start with an implicit '^' anchor.
     fn all_matches_at(&mut self, text: &str) {
 
         let plen = self.prog.len();
@@ -261,46 +258,14 @@ impl ThompsonInterpreter {
         }
     }
 
-    /// Apply our program repeatedly over an input string.
-    ///
-    /// Loops over the characters in the input, but will exit early if
-    /// we ever reach a point where nothing in the input matches.
-    /// Then clist will be empty.
-    /// Currently, we have no way of knowing what caused termination
-    /// (out of string? no surviving threads?). It is just a matter of
-    /// whether there were any matches at that point.
-    /// 
-    /// This is not quite correct. There should be an outer loop which 
-    /// consumes the string, and an inner loop which finds matches.
-    /// When we are done looking for matches (clist is empty), we bump
-    /// our string position to either the end of the best match (if there
-    /// were any) or one position forward (if there were no matches).
-    ///
-    /// That latter is assuming that we do not require a match of some kind
-    /// on every character. Otherwise we have to fail harder in cases where
-    /// the match list comes back empty.
-    pub fn apply(&mut self, text: &str, sink: &mut TokenSink) {
 
-        let mut pos: usize = 0;
-        while pos < text.len() {
-            self.all_matches_at(&text[pos..]);
-            // Now, what is our best match, if any? 
-            match self.best_match() {
-                None => {
-                    // increment pos by 1 and try again
-                    //println!("No rule matched at pos {}", pos);
-                    sink.skip(pos, &text[pos..(pos + 1)]);
-                    pos += 1;
-                }
-                Some(mtch) => {
-                    // emit a token
-                    //println!("TOKEN: {} -> {} [{}]", pos, pos + mtch.len, mtch.rule);
-                    sink.append(pos, &text[pos..(pos + mtch.len)], mtch.rule);
-                    //self.actions[mtch.rule](&text[pos..(pos + mtch.len)]);
-                    // increment pos by mtch length and continue
-                    pos += mtch.len;
-                }
-            }
-        }
+}
+
+impl TokenRecognizer for ThompsonInterpreter {
+    /// Find the best match for a prefix of `&text[pos..]`.
+    fn next_token(&mut self, text:&str, pos: usize) -> Option<MatchRecord> {
+        self.all_matches_at(&text[pos..]);
+        self.best_match()
     }
+
 }

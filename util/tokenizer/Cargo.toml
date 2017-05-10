@@ -1,9 +1,10 @@
 [package]
-name = "regex_tokenizer"
+name = "english_tokenizer"
 version = "0.1.0"
 authors = ["Tom Cornell <tom.cornell@gmail.com>"]
 
 [dependencies]
 getopts = "0.2.4"
-nlpsvc_regex = { path = "../../lib/regex" }
+regex_tokenizer = { path = "../../lib/regex_tokenizer" }
+nlpsvc_regex = { path = "../../lib/nlpsvc_regex" }
 annotated_document = { path = "../../lib/annotated_document" }
