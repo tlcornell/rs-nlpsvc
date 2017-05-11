@@ -46,7 +46,7 @@ impl AnnotationSet {
     }
 
     pub fn append(&mut self, node: Node) {
-        unimplemented!();
+        println!("Append node {:?}", node);
     }
 
     pub fn leaf_nodes(&self) -> LeafIter {
@@ -116,6 +116,7 @@ impl NodeBuilder {
 
 }
 
+#[derive(Debug)]
 pub struct Node;
 
 impl Node {
