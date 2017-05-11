@@ -5,7 +5,10 @@
 // main.rs 
 
 extern crate getopts;
-extern crate nlpsvc_regex;
+extern crate annotated_document;
+extern crate regex_tokenizer;
+
+//mod dummy_tokenizer;
 
 use getopts::Options;
 use std::env;
@@ -16,8 +19,11 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::path::Path;
 
-mod regex_tokenizer;
-use regex_tokenizer::TokenizerBuilder;
+
+//use dummy_tokenizer::DummyTokenizerRules;
+use annotated_document::AnnotatedDocument;
+use regex_tokenizer::english_rules::EnglishTokenizer;
+use regex_tokenizer::regex_tokenizer::RegexTokenizer;
 
 struct AppConfig {
     text_file: Option<String>,
@@ -89,28 +95,14 @@ impl TextSource {
 
 
 
-fn word_action (tok: &str) {
-    println!("WORD [{}]", tok);
-}
 
-fn num_action(tok: &str) {
-    println!("NUMBER [{}]", tok);
-}
-
-fn punct_action(tok: &str) {
-    println!("PUNCT [{}]", tok);
-}
 
 fn main() {
     let cfg = configure();
     let text_src = TextSource::new(&cfg);
-
-    let mut english_tokenizer = TokenizerBuilder::new()
-        .add_rule(r"(?i)[a-z]+", word_action)           // [0] words
-        .add_rule(r"[0-9,.]*[0-9]+", num_action)        // [1] numbers
-        .add_rule(r"[.,?!]", punct_action)              // [2] punctuation
-        .build();
-
     println!("\n{}", text_src.get_text());
-    english_tokenizer.run(text_src.get_text());
+
+    let mut tokenizer = EnglishTokenizer::new();   // compile regex patterns
+    let mut doc = AnnotatedDocument::new(text_src.get_text());
+    tokenizer.apply_to(&mut doc);
 }

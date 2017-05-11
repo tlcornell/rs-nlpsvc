@@ -1,8 +1,8 @@
 [package]
-name = "nlpsvc_regex"
+name = "regex_tokenizer"
 version = "0.1.0"
 authors = ["Tom Cornell <tom.cornell@gmail.com>"]
 
 [dependencies]
-getopts = "0.2.4"
+nlpsvc_regex = { path = "../nlpsvc_regex" }
 annotated_document = { path = "../annotated_document" }

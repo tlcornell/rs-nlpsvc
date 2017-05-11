@@ -7,7 +7,8 @@ authors = ["Tom Cornell <tom.cornell@gmail.com>"]
 getopts = "0.2.4"
 
 annotated_document = { path = "lib/annotated_document" }
-nlpsvc_regex = { path = "lib/nlpsvc-regex" }
+nlpsvc_regex = { path = "lib/nlpsvc_regex" }
+regex_tokenizer = { path = "lib/regex_tokenizer" }
 
 [[bin]]
 name = "tokenizer"
