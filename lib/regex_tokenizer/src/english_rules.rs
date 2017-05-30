@@ -9,11 +9,10 @@ use nlpsvc_regex::reinterp::ThompsonInterpreter;
 use nlpsvc_regex::reinterp::TokenRecognizer;
 use nlpsvc_regex::reinterp::MatchRecord;
 use regex_tokenizer::TokenReactor;
-use annotated_document::AnnotatedDocument;
-use annotated_document::AnnotationSet;
 use regex_tokenizer::ThompsonProgramBuilder;
 use regex_tokenizer::RegexTokenizer;
-
+use annotated_document::AnnotatedDocument;
+use annotated_document::node_label::NodeLabel;
 
 pub struct EnglishTokenizer {
     matcher: ThompsonInterpreter,
@@ -22,7 +21,7 @@ pub struct EnglishTokenizer {
 impl EnglishTokenizer {
 
     pub fn new() -> EnglishTokenizer {
-        let mut english_patterns = ThompsonProgramBuilder::new()
+        let english_patterns = ThompsonProgramBuilder::new()
            .add_rule(r"(?i)[a-z]+")           // [0] words
            .add_rule(r"[0-9,.]*[0-9]+")       // [1] numbers
            .add_rule(r"[.,?!]")               // [2] punctuation
@@ -32,21 +31,19 @@ impl EnglishTokenizer {
         }
     }
 
-    fn word_action(&mut self, begin: usize, end: usize, doc: &mut AnnotatedDocument) {
-        println!("WORD [{}] at {}", &doc.get_text()[begin..end], begin);
-        let token = doc.get_objects().node_builder()
-                        .span(begin, end)
-                        .sym_val("toktype", "WORD")
-                        .build();
-        doc.get_objects().append(token);
+    fn word_action(&mut self, begin: usize, end: usize, token: &mut NodeLabel) {
+        //println!("WORD [{}] at {}", &doc.get_text()[begin..end], begin);
+        token.set_sym_val("toktype", "WORD");
     }
 
-    fn num_action(&mut self, begin:usize, end: usize, doc: &mut AnnotatedDocument) {
-        println!("NUMBER [{}] at {}", &doc.get_text()[begin..end], begin);
+    fn num_action(&mut self, begin:usize, end: usize, token: &mut NodeLabel) {
+        //println!("NUMBER [{}] at {}", &doc.get_text()[begin..end], begin);
+        token.set_sym_val("toktype", "NUMBER");
     }
 
-    fn punct_action(&mut self, begin: usize, end: usize, doc: &mut AnnotatedDocument) {
-        println!("PUNCT [{}] at {}", &doc.get_text()[begin..end], begin);
+    fn punct_action(&mut self, begin: usize, end: usize, token: &mut NodeLabel) {
+        //println!("PUNCT [{}] at {}", &doc.get_text()[begin..end], begin);
+        token.set_sym_val("toktype", "PUNCT");
     }
 }
 
@@ -62,13 +59,27 @@ impl TokenReactor for EnglishTokenizer {
     ///
     /// Append a token starting at `begin` with text `text`, that 
     /// matched rule #`rule_id`.
-    fn append(&mut self, begin: usize, end:usize, rule_id: usize, doc: &mut AnnotatedDocument) {
+    fn append(&mut self, 
+              begin: usize, 
+              end:usize, 
+              rule_id: usize, 
+              doc: &mut AnnotatedDocument
+    ) {
+        let mut token = NodeLabel::new();
+        token.set_span(begin, end);
         match rule_id {
-            0 => { self.word_action(begin, end, doc); }
-            1 => { self.num_action(begin, end, doc); }
-            2 => { self.punct_action(begin, end, doc); }
+            0 => { self.word_action(begin, end, &mut token); }
+            1 => { self.num_action(begin, end, &mut token); }
+            2 => { self.punct_action(begin, end, &mut token); }
             _ => { panic!("Unrecognized rule ID {} at pos {}", rule_id, begin); }
-        }
+        };
+        println!(
+            "{} [{}] at {}", 
+            token.get_sym_val("toktype"), 
+            &doc.get_text()[begin..end], 
+            begin
+        );
+        doc.get_trees().push_back(token);
     }
 
     /// Skip an unhandled character
