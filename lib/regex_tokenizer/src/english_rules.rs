@@ -12,7 +12,7 @@ use regex_tokenizer::TokenReactor;
 use regex_tokenizer::ThompsonProgramBuilder;
 use regex_tokenizer::RegexTokenizer;
 use annotated_document::AnnotatedDocument;
-use annotated_document::node_label::NodeLabel;
+use annotated_document::NodeLabel;
 
 pub struct EnglishTokenizer {
     matcher: ThompsonInterpreter,
@@ -31,17 +31,17 @@ impl EnglishTokenizer {
         }
     }
 
-    fn word_action(&mut self, begin: usize, end: usize, token: &mut NodeLabel) {
+    fn word_action(&mut self, _begin: usize, _end: usize, token: &mut NodeLabel) {
         //println!("WORD [{}] at {}", &doc.get_text()[begin..end], begin);
         token.set_sym_val("toktype", "WORD");
     }
 
-    fn num_action(&mut self, begin:usize, end: usize, token: &mut NodeLabel) {
+    fn num_action(&mut self, _begin:usize, _end: usize, token: &mut NodeLabel) {
         //println!("NUMBER [{}] at {}", &doc.get_text()[begin..end], begin);
         token.set_sym_val("toktype", "NUMBER");
     }
 
-    fn punct_action(&mut self, begin: usize, end: usize, token: &mut NodeLabel) {
+    fn punct_action(&mut self, _begin: usize, _end: usize, token: &mut NodeLabel) {
         //println!("PUNCT [{}] at {}", &doc.get_text()[begin..end], begin);
         token.set_sym_val("toktype", "PUNCT");
     }
@@ -79,7 +79,7 @@ impl TokenReactor for EnglishTokenizer {
             &doc.get_text()[begin..end], 
             begin
         );
-        doc.get_trees().push_back(token);
+        doc.get_trees_mut().push_back(token);
     }
 
     /// Skip an unhandled character

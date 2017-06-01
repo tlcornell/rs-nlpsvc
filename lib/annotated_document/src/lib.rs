@@ -4,7 +4,9 @@ use std::collections::HashMap;
 
 
 pub mod tree_sequence;
-pub mod node_label;
+mod node_label;
+
+pub use node_label::NodeLabel;
 
 use tree_sequence::TreeSequence;
 
@@ -32,8 +34,11 @@ impl AnnotatedDocument {
     pub fn get_text(&self) -> &str {
         &self.doc_string
     }
-    pub fn get_trees(&mut self) -> &mut TreeSequence {
+    pub fn get_trees_mut(&mut self) -> &mut TreeSequence {
         &mut self.tree_sequence
+    }
+    pub fn get_trees(&self) -> &TreeSequence {
+        &self.tree_sequence
     }
 }
 
