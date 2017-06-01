@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////
 //
-// package: regex_tokenizer
+// util/tokenizer/src/main.rs
 //
-// main.rs 
+// Tokenizer 
 
 extern crate getopts;
 extern crate annotated_document;
@@ -100,7 +100,7 @@ impl TextSource {
 fn main() {
     let cfg = configure();
     let text_src = TextSource::new(&cfg);
-    println!("\n{}", text_src.get_text());
+    println!("====================\n{}\n====================", text_src.get_text());
 
     let mut tokenizer = EnglishTokenizer::new();   // compile regex patterns
     let mut doc = AnnotatedDocument::new(text_src.get_text());

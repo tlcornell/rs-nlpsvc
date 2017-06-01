@@ -38,6 +38,11 @@ impl NodeLabel {
 
 impl fmt::Display for NodeLabel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {} ", self.span.unwrap().0, self.span.unwrap().1)
+        match self.span {
+            None => write!(f, "(_, _)"),
+            Some((b, e)) => write!(f, "{} {} ", 
+                                      self.span.unwrap().0, 
+                                      self.span.unwrap().1)
+        }
     }
 }

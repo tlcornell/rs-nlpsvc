@@ -3,12 +3,14 @@ extern crate indextree;
 use std::collections::HashMap;
 
 
-pub mod tree_sequence;
+mod tree_sequence;
 mod node_label;
 
 pub use node_label::NodeLabel;
+pub use tree_sequence::TreeSequence;
+pub use tree_sequence::TreeCursor;
+pub use tree_sequence::CursorMemo;
 
-use tree_sequence::TreeSequence;
 
 #[cfg(test)]
 mod tests {

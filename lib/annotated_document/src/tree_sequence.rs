@@ -73,10 +73,10 @@ impl TreeSequence {
         let mut child: NodeId = begin.node.unwrap();
         child.insert_before(root, &mut self.arena);
         while child != end_id {
-            println!("DEBUG  {:?} != {:?}", child, end_id);
+            //println!("DEBUG  {:?} != {:?}", child, end_id);
             root.append(child, &mut self.arena);
             let next_opt = self.arena[root].next_sibling();
-            println!("DEBUG  next_opt = {:?}", next_opt);
+            //println!("DEBUG  next_opt = {:?}", next_opt);
             child = next_opt.unwrap();
         }
     }
@@ -115,7 +115,7 @@ impl<'a> TreeCursor<'a> {
         }
     }
 
-    pub fn to_snapshot(&self) -> CursorMemo {
+    pub fn to_memo(&self) -> CursorMemo {
         CursorMemo { node: self.node }
     }
 
@@ -177,7 +177,7 @@ impl<'a> fmt::Debug for TreeCursor<'a> {
 ///
 /// The root list is formed by a sequence of nodes connected as siblings,
 /// but with no parents.
-pub fn print_tree_sequence(node: Option<NodeId>, arena: &TreeArena, depth: i32) {
+fn print_tree_sequence(node: Option<NodeId>, arena: &TreeArena, depth: i32) {
     if node.is_none() {
         return;
     }
@@ -189,7 +189,7 @@ pub fn print_tree_sequence(node: Option<NodeId>, arena: &TreeArena, depth: i32) 
 /// Print a tree in outline form 
 ///
 /// Indent tab size is hard-coded as 4.
-pub fn print_tree(node: NodeId, arena: &TreeArena, depth: i32) {
+fn print_tree(node: NodeId, arena: &TreeArena, depth: i32) {
     // print label at indent
     let indent = depth * 4;
     for _ in 0..indent {
