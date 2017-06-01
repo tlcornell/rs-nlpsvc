@@ -1,6 +1,9 @@
 //! # tree_sequence.rs
 //!
-//! 
+//! Manage a sequence of trees. 
+//!
+//! Basically the many many children of a single root node that 
+//! remains implicit.
 
 
 use std::fmt;
@@ -26,12 +29,12 @@ impl TreeSequence {
         }
     }
 
-    pub fn unlock(&self, memo: CursorSnapshot) -> Cursor {
-        Cursor::new(memo.node, &self.arena)
+    pub fn activate(&self, memo: CursorMemo) -> TreeCursor {
+        TreeCursor::new(memo.node, &self.arena)
     }
 
-    pub fn first(&self) -> Cursor {
-        Cursor::new(self.first, &self.arena)
+    pub fn first(&self) -> TreeCursor {
+        TreeCursor::new(self.first, &self.arena)
     }
 
     pub fn print(&self) {
@@ -61,8 +64,8 @@ impl TreeSequence {
     /// if we were working on the very tail of the tree list. 
     /// That case has to be accounted for!
     ///
-    /// This should probably return a Cursor wrapping the new root node.
-    pub fn chunk(&mut self, lbl: NodeLabel, begin: CursorSnapshot, end: CursorSnapshot) {
+    /// This should probably return a TreeCursor wrapping the new root node.
+    pub fn chunk(&mut self, lbl: NodeLabel, begin: CursorMemo, end: CursorMemo) {
         // 1. Check that begin and end are not None
         // 2. Check that they are not equal
         let root: NodeId = self.arena.new_node(lbl);
@@ -81,24 +84,24 @@ impl TreeSequence {
 
 
 
-pub struct Cursor<'a> {
+pub struct TreeCursor<'a> {
     node: Option<NodeId>,
     arena: &'a TreeArena,
 }
 
 #[derive(Debug)]
-pub struct CursorSnapshot {
+pub struct CursorMemo {
     node: Option<NodeId>,
 }
 
 /// Once you move off the edge of the tree, you can't go back, so maybe
 /// this struct needs some lookahead methods as well?
 /// Maybe always leave behind a copy? Instead of returning Option<NodeId>,
-/// return a Cursor?
-impl<'a> Cursor<'a> {
+/// return a TreeCursor?
+impl<'a> TreeCursor<'a> {
 
-    pub fn new(node: Option<NodeId>, arena: &TreeArena) -> Cursor {
-        Cursor { node: node, arena }
+    pub fn new(node: Option<NodeId>, arena: &TreeArena) -> TreeCursor {
+        TreeCursor { node: node, arena }
     }
 
     pub fn is_valid(&self) -> bool {
@@ -112,8 +115,8 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    pub fn to_snapshot(&self) -> CursorSnapshot {
-        CursorSnapshot { node: self.node }
+    pub fn to_snapshot(&self) -> CursorMemo {
+        CursorMemo { node: self.node }
     }
 
     /// Move the cursor up
@@ -138,6 +141,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    /// Move the cursor to its right sibling
     pub fn next(&mut self) -> Option<NodeId> {
         match self.node.take() {
             Some(node) => {
@@ -148,6 +152,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    /// Move the cursor to its leftmost child
     pub fn first(&mut self) -> Option<NodeId> {
         match self.node.take() {
             Some(node) => {
@@ -160,9 +165,9 @@ impl<'a> Cursor<'a> {
 }
 
 
-impl<'a> fmt::Debug for Cursor<'a> {
+impl<'a> fmt::Debug for TreeCursor<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Cursor {{ node: {:?}, arena: ... }}", self.node)
+        write!(f, "TreeCursor {{ node: {:?}, arena: ... }}", self.node)
     }
 }
 
@@ -197,4 +202,14 @@ pub fn print_tree(node: NodeId, arena: &TreeArena, depth: i32) {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        //assert_eq!(4, add_two(2));
+    }
+}
 
