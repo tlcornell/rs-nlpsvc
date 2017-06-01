@@ -71,14 +71,18 @@ impl TreeSequence {
         let root: NodeId = self.arena.new_node(lbl);
         let end_id: NodeId = end.node.unwrap();
         let mut child: NodeId = begin.node.unwrap();
+        let b_off = self.arena[child].data.get_span().unwrap().0;
+        let mut e_off = 0;
         child.insert_before(root, &mut self.arena);
         while child != end_id {
+            e_off = self.arena[child].data.get_span().unwrap().1;
             //println!("DEBUG  {:?} != {:?}", child, end_id);
             root.append(child, &mut self.arena);
             let next_opt = self.arena[root].next_sibling();
             //println!("DEBUG  next_opt = {:?}", next_opt);
             child = next_opt.unwrap();
         }
+        self.arena[root].data.set_span(b_off, e_off);
     }
 }
 
