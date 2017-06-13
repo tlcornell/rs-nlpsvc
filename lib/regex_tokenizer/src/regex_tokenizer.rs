@@ -1,11 +1,9 @@
 
-use nlpsvc_regex::reinterp::ThompsonInterpreter;
 use nlpsvc_regex::reinterp::TokenRecognizer;
 use nlpsvc_regex::retrans::RegexTranslator;
 use nlpsvc_regex::reparse;
 use nlpsvc_regex::reprog::Program;
 use annotated_document::AnnotatedDocument;
-use annotated_document::AnnotationSet;
 
 
 /// Trait for holding actions to take upon token recognition
@@ -41,7 +39,6 @@ pub trait RegexTokenizer: TokenRecognizer + TokenReactor {
                 }
                 Some(match_rec) => {
                     let new_pos = pos + match_rec.len;
-                    //self.append(pos, &doc.get_text()[pos..new_pos], match_rec.rule, doc.get_objects());
                     self.append(pos, new_pos, match_rec.rule, doc);
                     pos = new_pos;
                 }
